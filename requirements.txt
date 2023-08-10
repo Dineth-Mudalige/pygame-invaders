@@ -1,1 +1,5 @@
 pygame==2.5.0
+explorepy==1.8.1
+pylsl==1.16.1
+numpy==1.25.2
+matplotlib==3.7.2
