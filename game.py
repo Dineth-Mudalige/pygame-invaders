@@ -1,5 +1,9 @@
 import pygame
-
+import requests
+import threading
+import time
+import constants
+import sys
 
 class Game:
     screen = None
@@ -13,38 +17,60 @@ class Game:
         self.height = height
         self.screen = pygame.display.set_mode((width, height))
         self.clock = pygame.time.Clock()
+        reader_thread = threading.Thread(target=self.run_game)
+        reader_thread.start()
+        
+    def run_game(self):
         done = False
 
-        hero = Hero(self, width / 2, height - 20)
+        hero = Hero(self, self.width / 2, self.height - 20)
         generator = Generator(self)
         rocket = None
-
+        lock = threading.Lock()
         while not done:
             if len(self.aliens) == 0:
                 self.displayText("VICTORY ACHIEVED")
+            self.rockets.append(Rocket(self, hero.x, hero.y))
 
             pressed = pygame.key.get_pressed()
             if pressed[pygame.K_LEFT]:  # sipka doleva
-                hero.x -= 2 if hero.x > 20 else 0  # leva hranice plochy
+                hero.x -= 6 if hero.x > 20 else 0  # leva hranice plochy
             elif pressed[pygame.K_RIGHT]:  # sipka doprava
-                hero.x += 2 if hero.x < width - 20 else 0  # prava hranice
+                hero.x += 6 if hero.x < self.width - 20 else 0  # prava hranice
 
+            with lock:
+                try:
+                    with open(constants.COMMAND_FILE_NAME,"r") as file:
+                        command = file.read()
+                        print("Read: ", command)
+                        if "LEFT" in command:
+                            hero.x -= 3 if hero.x > 20 else 0
+                            print("Moving left")
+                        elif "RIGHT" in command:
+                            hero.x += 3 if hero.x < self.width - 20 else 0
+                            print("Moving right")
+                        else:
+                            print("Staying still")
+                except FileNotFoundError:
+                    print("File not found")            
+           
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     done = True
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE and not self.lost:
-                    self.rockets.append(Rocket(self, hero.x, hero.y))
+                # if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE and not self.lost:
+                #     self.rockets.append(Rocket(self, hero.x, hero.y))
 
             pygame.display.flip()
-            self.clock.tick(60)
+            self.clock.tick(1e5)
             self.screen.fill((0, 0, 0))
 
             for alien in self.aliens:
                 alien.draw()
                 alien.checkCollision(self)
-                if (alien.y > height):
+                if (alien.y > self.height):
                     self.lost = True
-                    self.displayText("YOU DIED")
+                    self.displayText("YOU LOOSE")
+                    
 
             for rocket in self.rockets:
                 rocket.draw()
@@ -63,7 +89,7 @@ class Alien:
         self.x = x
         self.game = game
         self.y = y
-        self.size = 30
+        self.size = 20
 
     def draw(self):
         pygame.draw.rect(self.game.screen,  # renderovací plocha
@@ -116,6 +142,4 @@ class Rocket:
                          pygame.Rect(self.x, self.y, 2, 4))
         self.y -= 2  # poletí po herní ploše nahoru 2px/snímek
 
-
-if __name__ == '__main__':
-    game = Game(600, 400)
+game = Game(600, 400)
